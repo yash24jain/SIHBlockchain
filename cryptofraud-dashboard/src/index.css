@@ -1,0 +1,29 @@
+:root {
+  font-family: Inter, Arial, sans-serif;
+  color: #f4f7fb;
+  background: #080b12;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background: #080b12;
+}
+
+body {
+  color: #f4f7fb;
+}
+
+button,
+input {
+  font-family: inherit;
+}
