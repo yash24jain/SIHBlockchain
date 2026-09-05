@@ -1,0 +1,93 @@
+{
+  "synthetic_demo": false,
+  "records": [
+    {
+      "address": "0x3f5ce5fbfe3e9af3971dd833d26ba9b5c936f0be",
+      "entity_name": "Binance",
+      "entity_type": "VASP",
+      "vasp_category": "exchange",
+      "chain": "ethereum",
+      "jurisdiction": "International",
+      "source": "Etherscan",
+      "source_url": "https://etherscan.io/address/0x3f5ce5fbfe3e9af3971dd833d26ba9b5c936f0be",
+      "verification_date": "2026-08-30"
+    },
+    {
+      "address": "0xbe0eb53f46cd790cd13851d5eff43d12404d33e8",
+      "entity_name": "Binance",
+      "entity_type": "VASP",
+      "vasp_category": "exchange",
+      "chain": "ethereum",
+      "jurisdiction": "International",
+      "source": "Etherscan",
+      "source_url": "https://etherscan.io/address/0xbe0eb53f46cd790cd13851d5eff43d12404d33e8",
+      "verification_date": "2026-08-30"
+    },
+    {
+      "address": "0xf977814e90da44bfa03b6295a0616a897441acec",
+      "entity_name": "Binance",
+      "entity_type": "VASP",
+      "vasp_category": "exchange",
+      "chain": "ethereum",
+      "jurisdiction": "International",
+      "source": "Etherscan",
+      "source_url": "https://etherscan.io/address/0xf977814e90da44bfa03b6295a0616a897441acec",
+      "verification_date": "2026-08-30"
+    },
+    {
+      "address": "0xa9d1e08c7793af67e9d92fe308d5697fb81d3e43",
+      "entity_name": "Coinbase",
+      "entity_type": "VASP",
+      "vasp_category": "exchange",
+      "chain": "ethereum",
+      "jurisdiction": "United States",
+      "source": "Etherscan",
+      "source_url": "https://etherscan.io/address/0xa9d1e08c7793af67e9d92fe308d5697fb81d3e43",
+      "verification_date": "2026-08-30"
+    },
+    {
+      "address": "0x0b95993a39a363d99280ac950f5e4536ab5c5566",
+      "entity_name": "Binance",
+      "entity_type": "VASP",
+      "vasp_category": "exchange",
+      "chain": "ethereum",
+      "jurisdiction": "International",
+      "source": "Etherscan",
+      "source_url": "https://etherscan.io/address/0x0b95993a39a363d99280ac950f5e4536ab5c5566",
+      "verification_date": "2026-09-05"
+    },
+    {
+      "address": "0xd793281182a0e3e023116004778f45c29fc14f19",
+      "entity_name": "Gate",
+      "entity_type": "VASP",
+      "vasp_category": "exchange",
+      "chain": "ethereum",
+      "jurisdiction": "International",
+      "source": "Etherscan",
+      "source_url": "https://etherscan.io/address/0xd793281182a0e3e023116004778f45c29fc14f19",
+      "verification_date": "2026-09-05"
+    },
+    {
+      "address": "0xb8e6d31e7b212b2b7250ee9c26c56cebbfbe6b23",
+      "entity_name": "KuCoin",
+      "entity_type": "VASP",
+      "vasp_category": "exchange",
+      "chain": "ethereum",
+      "jurisdiction": "International",
+      "source": "Etherscan",
+      "source_url": "https://etherscan.io/address/0xb8e6d31e7b212b2b7250ee9c26c56cebbfbe6b23",
+      "verification_date": "2026-09-05"
+    },
+    {
+      "address": "0x7758e507850da48cd47df1fb5f875c23e3340c50",
+      "entity_name": "Crypto.com",
+      "entity_type": "VASP",
+      "vasp_category": "exchange",
+      "chain": "ethereum",
+      "jurisdiction": "International",
+      "source": "Etherscan",
+      "source_url": "https://etherscan.io/address/0x7758e507850da48cd47df1fb5f875c23e3340c50",
+      "verification_date": "2026-09-05"
+    }
+  ]
+}
