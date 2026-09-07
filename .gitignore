@@ -61,3 +61,5 @@ venv.bak/
 *.swo
 .DS_Store
 Thumbs.db
+
+add **/investigation.json and **/__pycache__/
