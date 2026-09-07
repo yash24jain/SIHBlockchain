@@ -1,0 +1,34 @@
+{
+    "wallet": "0x53d284357ec70ce289d6d64134dfac8e511c8a3d",
+    "chain": "ethereum",
+    "generated_at": "2026-09-07T06:23:10.196006+00:00",
+    "wallets_metadata": {
+        "0x53d284357ec70ce289d6d64134dfac8e511c8a3d": {
+            "entity_type": "EOA",
+            "label": "Unlabeled"
+        },
+        "0x267be1c1d684f78cb4f6a176c4911b741e4ffdc0": {
+            "entity_type": "EXCHANGE_DEPOSIT",
+            "label": "Kraken"
+        }
+    },
+    "transactions": [
+        {
+            "from": "0x53d284357ec70ce289d6d64134dfac8e511c8a3d",
+            "to": "0x267be1c1d684f78cb4f6a176c4911b741e4ffdc0",
+            "amount": 1.04,
+            "amount_unit": "ETH",
+            "amount_raw": "1040000000000000000",
+            "timestamp": "2025-07-18T13:58:59+00:00",
+            "tx_hash": "0x3c40eebd5d9a8f562c57e9968e6c7c9f3c3586e3be3a785d0d321e379ee285a3",
+            "token": "ETH",
+            "token_symbol": "ETH",
+            "chain": "ethereum",
+            "direction": "OUT",
+            "transaction_status": "SUCCESS",
+            "transaction_type": "NATIVE_TRANSFER",
+            "block_number": 22946535,
+            "transaction_index": 3
+        }
+    ]
+}

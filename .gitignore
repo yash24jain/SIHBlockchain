@@ -1,0 +1,63 @@
+# ==========================================
+# SECRETS & ENVIRONMENT VARIABLES (CRITICAL)
+# ==========================================
+.env
+.env.*
+!.env.example
+
+# ==========================================
+# RUNTIME FORENSIC OUTPUTS & LOCAL DATA
+# ==========================================
+# Keeps your fixture template if needed, but ignores investigation results & caches
+data/investigation.json
+data/*.cache
+data/cache/
+*.log
+
+# ==========================================
+# PYTHON ARTIFACTS & BYTECODE
+# ==========================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# ==========================================
+# VIRTUAL ENVIRONMENTS
+# ==========================================
+venv/
+.venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# ==========================================
+# IDE & OS SPECIFIC FILES
+# ==========================================
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
