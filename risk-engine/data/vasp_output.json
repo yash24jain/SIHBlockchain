@@ -1,0 +1,34 @@
+{
+  "suspect_wallet": "0xde0b295669a9fd93d5f28d9ec85e40f4cb697bae",
+  "chain": "ethereum",
+  "vasp_matches": [
+    {
+      "address": "0x3f5ce5fbfe3e9af3971dd833d26ba9b5c936f0be",
+      "entity_name": "Binance",
+      "entity_type": "VASP",
+      "vasp_category": "exchange",
+      "chain": "ethereum",
+      "jurisdiction": "International",
+      "hop_distance": 1,
+      "match_status": "confirmed",
+      "confidence_score": 0.9,
+      "confidence_reasons": [
+        "Direct match with known entity address",
+        "3 interactions detected",
+        "Entity record has a verification date",
+        "Entity record contains source information"
+      ],
+      "interaction_count": 3,
+      "matched_transaction_hashes": [
+        "0x1111111111111111111111111111111111111111111111111111111111111111",
+        "0x2b3c4d5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f708193b4c5d6e7f8091a3",
+        "0x3c4d5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f708194c5d6e7f8091a2b3c4d"
+      ],
+      "first_seen": "2026-05-01T10:00:00+00:00",
+      "last_seen": "2026-05-03T10:00:00+00:00",
+      "attribution_method": "known_address_match",
+      "source": "Etherscan",
+      "source_url": "https://etherscan.io/address/0x3f5ce5fbfe3e9af3971dd833d26ba9b5c936f0be"
+    }
+  ]
+}

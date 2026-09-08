@@ -1,0 +1,22 @@
+{
+  "suspect_wallet": "0xde0b295669a9fd93d5f28d9ec85e40f4cb697bae",
+  "chain": "ethereum",
+  "features": {
+    "wallet_count": 18.0,
+    "transaction_count": 29.0,
+    "total_outgoing_value": 9942474.8081,
+    "destination_count": 3.0,
+    "max_hops": 1.0,
+    "path_count": 10.0,
+    "critical_path_count": 0.0,
+    "max_path_hops": 1.0,
+    "max_path_value": 3091982.0,
+    "average_path_value": 994247.48081,
+    "fund_splitting": 1.0,
+    "fund_consolidation": 1.0,
+    "rapid_movement": 0.0,
+    "high_value_transfer": 1.0,
+    "average_value_retention": 0.0,
+    "high_value_retention_paths": 0.0
+  }
+}

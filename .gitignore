@@ -63,3 +63,14 @@ venv.bak/
 Thumbs.db
 
 add **/investigation.json and **/__pycache__/
+# ==========================================
+# RISK ENGINE GENERATED OUTPUTS
+# ==========================================
+risk-engine/data/anomaly_model.pkl
+risk-engine/data/features.json
+risk-engine/data/risk_result.json
+risk-engine/data/transaction_dataset.csv
+
+risk-engine/.pytest_cache/
+risk-engine/__pycache__/
+risk-engine/venv/
