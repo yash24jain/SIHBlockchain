@@ -131,6 +131,18 @@ export async function generateReport(walletAddress) {
   return response.json();
 }
 
+export async function getReportStatus(reportId) {
+  await ensureAuthToken();
+  const response = await fetch(`${API_BASE_URL}/reports/${reportId}`, {
+    headers: getAuthHeaders(),
+  });
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Report status failed (${response.status}): ${errorText}`);
+  }
+  return response.json();
+}
+
 export async function downloadReport(reportId) {
   await ensureAuthToken();
   const response = await fetch(`${API_BASE_URL}/reports/${reportId}/download`, {
@@ -141,12 +153,23 @@ export async function downloadReport(reportId) {
     throw new Error(`Report download failed (${response.status}): ${errorText}`);
   }
   const blob = await response.blob();
-  const url = window.URL.createObjectURL(blob);
+  const contentDisposition = response.headers.get("Content-Disposition");
+  let filename = `Crypto_Trace_Evidence_${reportId}.pdf`;
+  if (contentDisposition) {
+    const match = contentDisposition.match(/filename=["']?([^"';]+)["']?/);
+    if (match && match[1]) {
+      filename = match[1];
+    }
+  }
+  const pdfBlob = new Blob([blob], { type: "application/pdf" });
+  const url = window.URL.createObjectURL(pdfBlob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `CryptoTrace_Investigation_Report_${reportId}.pdf`;
+  a.download = filename;
   document.body.appendChild(a);
   a.click();
   a.remove();
   window.URL.revokeObjectURL(url);
 }
+
+

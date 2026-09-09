@@ -138,73 +138,34 @@ function App() {
       alert("Please enter and analyze a wallet before generating an investigation report.");
       return;
     }
-    setReportGenerated(true);
     try {
       const rep = await api.generateReport(searchedWallet);
       if (rep && rep.id) {
+        let status = rep.status;
+        let attempts = 0;
+        while (status !== "READY" && attempts < 20) {
+          await new Promise((r) => setTimeout(r, 300));
+          const check = await api.getReportStatus(rep.id);
+          status = check ? check.status : "READY";
+          attempts++;
+        }
+        setReportGenerated(true);
         await api.downloadReport(rep.id);
       }
     } catch (e) {
-      console.warn("Direct report download fallback:", e);
+      console.warn("Report generation error:", e);
     }
   }
 
-  function exportEvidence() {
+
+  async function exportEvidence() {
     if (!searchedWallet) {
       alert("No investigation data available. Please analyze a wallet first.");
       return;
     }
-
-    const txSummary = txList.length > 0
-      ? txList.map((tx) => `  - ${tx.hash} | ${tx.from} -> ${tx.to} | ${tx.amount} | ${tx.status}`).join("\n")
-      : "  - No transactions recorded for this wallet.";
-
-    const reasonSummary = reasons.length > 0
-      ? reasons.map((r) => `  - [!] ${r}`).join("\n")
-      : "  - No suspicious signals surfaced.";
-
-    const nodeSummary = nodeList.length > 0
-      ? nodeList.map((n) => `  - ${n.name} (${n.id}) [${n.type}]`).join("\n")
-      : "  - No graph nodes.";
-
-    const content = `==========================================================================
-                CRYPTO FORENSICS INVESTIGATION EVIDENCE EXPORT
-                      SIH PROBLEM STATEMENT 26183
-==========================================================================
-Target Wallet       : ${searchedWallet}
-Analysis Timestamp  : ${new Date().toISOString()}
-Risk Score          : ${riskScore !== null ? `${riskScore}/100` : "N/A"}
-Risk Level          : ${riskLevel}
-VASP Attribution    : ${vaspMatch.name} (${vaspMatch.confidence}% Confidence)
-
-SUSPICIOUS SIGNALS & REASONS:
-${reasonSummary}
-
-VASP MATCH ATTRIBUTION:
-  - Identified Entity : ${vaspMatch.name}
-  - Confidence Score  : ${vaspMatch.confidence}%
-
-GRAPH TOPOLOGY (${nodeList.length} Nodes):
-${nodeSummary}
-
-ON-CHAIN TRANSACTIONS (${txList.length}):
-${txSummary}
-
-==========================================================================
-                       END OF EVIDENCE EXPORT
-==========================================================================
-`;
-
-    const blob = new Blob([content], { type: "text/plain" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `CryptoTrace_Evidence_${searchedWallet.slice(0, 10)}.txt`;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    URL.revokeObjectURL(url);
+    await generateReport();
   }
+
 
   return (
     <div className="app">
