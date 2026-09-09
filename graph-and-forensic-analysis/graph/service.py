@@ -17,21 +17,27 @@ def compute_volume_retention(transactions):
     return start_amount, end_amount, round(retention_pct, 2), token
 
 
-def generate_wallet_graph_payload(wallet_address: str, max_hops: int = 4) -> dict:
+def generate_wallet_graph_payload(wallet_address: str, max_hops: int = 4, blockchain_data: dict | None = None) -> dict:
     wallet_address = str(wallet_address).lower().strip()
-    data_file = "data/blockchain_data.json"
+    
+    if blockchain_data is None:
+        data_file = "data/blockchain_data.json"
+        if not os.path.exists(data_file):
+            # Try path relative to graph package root if running from backend
+            alt_path = os.path.join(os.path.dirname(__file__), "..", "data", "blockchain_data.json")
+            if os.path.exists(alt_path):
+                data_file = alt_path
+            else:
+                return {
+                    "wallet_address": wallet_address,
+                    "nodes": [],
+                    "edges": [],
+                    "patterns": [],
+                    "error": "Forensic data file not found"
+                }
 
-    if not os.path.exists(data_file):
-        return {
-            "wallet_address": wallet_address,
-            "nodes": [],
-            "edges": [],
-            "patterns": [],
-            "error": "Forensic data file not found"
-        }
-
-    with open(data_file, "r", encoding="utf-8") as f:
-        blockchain_data = json.load(f)
+        with open(data_file, "r", encoding="utf-8") as f:
+            blockchain_data = json.load(f)
 
     # 1. Ingest non-zero value transactions
     transactions = [

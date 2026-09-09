@@ -7,6 +7,10 @@ from src.ml_dataset_loader import ML_FEATURE_MAP
 
 
 MODEL_PATH = "data/fraud_model.pkl"
+if not os.path.exists(MODEL_PATH):
+    alt_model_path = os.path.join(os.path.dirname(__file__), "..", "data", "fraud_model.pkl")
+    if os.path.exists(alt_model_path):
+        MODEL_PATH = alt_model_path
 
 
 def build_feature_dataframe(features):

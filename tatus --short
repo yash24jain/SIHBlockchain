@@ -1,0 +1,19 @@
+warning: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it
+cryptofraud-dashboard/src/App.jsx:15: trailing whitespace.
+[32m+[m[41m  [m
+graph-and-forensic-analysis/graph/service.py:22: trailing whitespace.
+[32m+[m[41m    [m
+member3-backend/app/services/blockchain_client.py:55: trailing whitespace.
+[32m+[m[41m                        [m
+member3-backend/app/services/blockchain_client.py:135: new blank line at EOF.
+member3-backend/app/services/graph_client.py:47: trailing whitespace.
+[32m+[m[41m            [m
+member3-backend/app/services/graph_client.py:129: new blank line at EOF.
+member3-backend/app/services/risk_client.py:56: trailing whitespace.
+[32m+[m[41m        [m
+member3-backend/app/services/risk_client.py:66: trailing whitespace.
+[32m+[m[41m        [m
+member3-backend/app/services/risk_client.py:128: new blank line at EOF.
+member3-backend/app/services/vasp_client.py:57: trailing whitespace.
+[32m+[m[41m        [m
+member3-backend/app/services/vasp_client.py:120: new blank line at EOF.

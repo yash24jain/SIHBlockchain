@@ -1,71 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import "./App.css";
-
-const transactions = [
-  {
-    hash: "0x8a21...91fd",
-    from: "Suspect Wallet",
-    to: "Wallet A",
-    amount: "1.42 ETH",
-    time: "10:42 AM",
-    status: "Suspicious",
-  },
-  {
-    hash: "0x72bc...44ae",
-    from: "Suspect Wallet",
-    to: "Wallet B",
-    amount: "0.82 ETH",
-    time: "10:38 AM",
-    status: "Suspicious",
-  },
-  {
-    hash: "0x51de...8201",
-    from: "Wallet A",
-    to: "Consolidation",
-    amount: "1.10 ETH",
-    time: "10:31 AM",
-    status: "Normal",
-  },
-  {
-    hash: "0x44fa...71bc",
-    from: "Wallet B",
-    to: "Consolidation",
-    amount: "0.76 ETH",
-    time: "10:25 AM",
-    status: "Suspicious",
-  },
-  {
-    hash: "0x31ab...992e",
-    from: "Consolidation",
-    to: "Wallet C",
-    amount: "0.54 ETH",
-    time: "10:19 AM",
-    status: "Normal",
-  },
-  {
-    hash: "0x21cd...77af",
-    from: "Consolidation",
-    to: "VASP",
-    amount: "1.32 ETH",
-    time: "10:11 AM",
-    status: "Suspicious",
-  },
-];
-
-const nodes = [
-  { id: "suspect", name: "Suspect Wallet", type: "HIGH RISK", x: 7, y: 45 },
-  { id: "walletA", name: "Wallet A", type: "INTERMEDIATE", x: 27, y: 25 },
-  { id: "walletB", name: "Wallet B", type: "HIGH RISK", x: 27, y: 68 },
-  {
-    id: "consolidation",
-    name: "Consolidation",
-    type: "SUSPICIOUS",
-    x: 51,
-    y: 45,
-  },
-  { id: "walletC", name: "Wallet C", type: "INTERMEDIATE", x: 75, y: 25 },
-  { id: "vasp", name: "VASP", type: "EXCHANGE", x: 75, y: 68 },
-];
+import * as api from "./services/api";
 
 function App() {
   const [page, setPage] = useState("dashboard");
@@ -75,8 +10,18 @@ function App() {
   const [transactionSearch, setTransactionSearch] = useState("");
   const [filter, setFilter] = useState("All");
   const [reportGenerated, setReportGenerated] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [analysisError, setAnalysisError] = useState(null);
+  
+  // Real API state (initialized with clean 'No investigation yet' initial state)
+  const [riskScore, setRiskScore] = useState(null);
+  const [riskLevel, setRiskLevel] = useState("NOT ANALYZED");
+  const [reasons, setReasons] = useState([]);
+  const [vaspMatch, setVaspMatch] = useState({ name: "Unattributed", confidence: 0 });
+  const [txList, setTxList] = useState([]);
+  const [nodeList, setNodeList] = useState([]);
 
-  const filteredTransactions = transactions.filter((tx) => {
+  const filteredTransactions = txList.filter((tx) => {
     const search = transactionSearch.toLowerCase();
 
     const matchesSearch =
@@ -90,49 +35,174 @@ function App() {
     return matchesSearch && matchesFilter;
   });
 
-  function analyzeWallet() {
-    if (wallet.trim() === "") {
-      setSearchedWallet("0x742d...f44e");
-    } else {
-      setSearchedWallet(wallet);
+  async function analyzeWallet() {
+    const targetWallet = wallet.trim() || "0xde0b295669a9fd93d5f28d9ec85e40f4cb697bae";
+    setSearchedWallet(targetWallet);
+    setLoading(true);
+    setAnalysisError(null);
+
+    // Immediately clear previous results before new analysis begins
+    setRiskScore(0);
+    setRiskLevel("ANALYZING");
+    setReasons([]);
+    setVaspMatch({ name: "Analyzing...", confidence: 0 });
+    setTxList([]);
+    setNodeList([]);
+
+    try {
+      // Ensure valid auth token exists
+      await api.ensureAuthToken();
+
+      // 1. Trigger live backend risk pipeline
+      const riskRes = await api.calculateWalletRisk(targetWallet);
+      if (riskRes) {
+        const scoreVal = riskRes.score !== undefined ? riskRes.score : (riskRes.risk_score !== undefined ? riskRes.risk_score : 0);
+        setRiskScore(Math.round(scoreVal));
+        setRiskLevel(riskRes.risk_level || "UNKNOWN");
+        setReasons(riskRes.reasons && riskRes.reasons.length > 0 ? riskRes.reasons : ["No specific suspicious signals surfaced."]);
+      }
+
+      // 2. Fetch live graph nodes & edges
+      try {
+        const graphRes = await api.getWalletGraph(targetWallet);
+        if (graphRes && graphRes.nodes && graphRes.nodes.length > 0) {
+          const apiNodes = graphRes.nodes.map((n, idx) => ({
+            id: n.id,
+            name: n.label || (n.id.length > 12 ? `${n.id.slice(0, 6)}...${n.id.slice(-4)}` : n.id),
+            type: n.type ? n.type.toUpperCase() : "PEER",
+            x: 10 + (idx % 4) * 25,
+            y: 25 + Math.floor(idx / 4) * 40,
+          }));
+          setNodeList(apiNodes);
+        } else {
+          setNodeList([]);
+        }
+      } catch (e) {
+        console.warn("Graph fetch detail:", e);
+        setNodeList([]);
+      }
+
+      // 3. Fetch VASP attribution
+      try {
+        const vaspRes = await api.attributeVASP(targetWallet);
+        if (vaspRes) {
+          setVaspMatch({
+            name: vaspRes.vasp_name_guess || "Unidentified Entity",
+            confidence: Math.round((vaspRes.confidence_score !== undefined ? vaspRes.confidence_score : 0) * 100),
+          });
+        } else {
+          setVaspMatch({ name: "None Detected", confidence: 0 });
+        }
+      } catch (e) {
+        console.warn("VASP fetch detail:", e);
+        setVaspMatch({ name: "Unattributed", confidence: 0 });
+      }
+
+      // 4. Fetch transactions list
+      try {
+        const txs = await api.getWalletTransactions(targetWallet);
+        if (txs && txs.length > 0) {
+          const formattedTxs = txs.map((tx) => ({
+            hash: tx.tx_hash ? `${tx.tx_hash.slice(0, 6)}...${tx.tx_hash.slice(-4)}` : "0x...",
+            from: tx.from_address ? `${tx.from_address.slice(0, 8)}...` : "Sender",
+            to: tx.to_address ? `${tx.to_address.slice(0, 8)}...` : "Receiver",
+            amount: `${tx.amount} ${tx.token_symbol || "ETH"}`,
+            time: tx.timestamp ? new Date(tx.timestamp).toLocaleTimeString() : "Recent",
+            status: tx.amount > 1.0 ? "Suspicious" : "Normal",
+          }));
+          setTxList(formattedTxs);
+        } else {
+          setTxList([]);
+        }
+      } catch (e) {
+        console.warn("Transactions fetch detail:", e);
+        setTxList([]);
+      }
+    } catch (err) {
+      console.error("Backend API Error during wallet analysis:", err);
+      setAnalysisError(err.message || "Failed to connect to backend server.");
+      // Requirement 10: DO NOT silently mask API failures with mock data!
+      setRiskScore(0);
+      setRiskLevel("FAILED");
+      setReasons([]);
+      setVaspMatch({ name: "Analysis Failed", confidence: 0 });
+      setTxList([]);
+      setNodeList([]);
+    } finally {
+      setLoading(false);
     }
   }
 
-  function generateReport() {
+  async function generateReport() {
+    if (!searchedWallet) {
+      alert("Please enter and analyze a wallet before generating an investigation report.");
+      return;
+    }
     setReportGenerated(true);
+    try {
+      const rep = await api.generateReport(searchedWallet);
+      if (rep && rep.id) {
+        await api.downloadReport(rep.id);
+      }
+    } catch (e) {
+      console.warn("Direct report download fallback:", e);
+    }
   }
 
   function exportEvidence() {
-    const content = `CryptoTrace Investigation Evidence
+    if (!searchedWallet) {
+      alert("No investigation data available. Please analyze a wallet first.");
+      return;
+    }
 
-Wallet: ${searchedWallet || "0x742d...f44e"}
-Risk Score: 87/100
-Risk Level: HIGH
-VASP Match: 92%
+    const txSummary = txList.length > 0
+      ? txList.map((tx) => `  - ${tx.hash} | ${tx.from} -> ${tx.to} | ${tx.amount} | ${tx.status}`).join("\n")
+      : "  - No transactions recorded for this wallet.";
 
-Transactions:
-${transactions
-  .map(
-    (tx) =>
-      `${tx.hash} | ${tx.from} -> ${tx.to} | ${tx.amount} | ${tx.status}`
-  )
-  .join("\n")}
+    const reasonSummary = reasons.length > 0
+      ? reasons.map((r) => `  - [!] ${r}`).join("\n")
+      : "  - No suspicious signals surfaced.";
 
-VASP Attribution:
-Potential VASP connection identified with 92% confidence.
+    const nodeSummary = nodeList.length > 0
+      ? nodeList.map((n) => `  - ${n.name} (${n.id}) [${n.type}]`).join("\n")
+      : "  - No graph nodes.";
+
+    const content = `==========================================================================
+                CRYPTO FORENSICS INVESTIGATION EVIDENCE EXPORT
+                      SIH PROBLEM STATEMENT 26183
+==========================================================================
+Target Wallet       : ${searchedWallet}
+Analysis Timestamp  : ${new Date().toISOString()}
+Risk Score          : ${riskScore !== null ? `${riskScore}/100` : "N/A"}
+Risk Level          : ${riskLevel}
+VASP Attribution    : ${vaspMatch.name} (${vaspMatch.confidence}% Confidence)
+
+SUSPICIOUS SIGNALS & REASONS:
+${reasonSummary}
+
+VASP MATCH ATTRIBUTION:
+  - Identified Entity : ${vaspMatch.name}
+  - Confidence Score  : ${vaspMatch.confidence}%
+
+GRAPH TOPOLOGY (${nodeList.length} Nodes):
+${nodeSummary}
+
+ON-CHAIN TRANSACTIONS (${txList.length}):
+${txSummary}
+
+==========================================================================
+                       END OF EVIDENCE EXPORT
+==========================================================================
 `;
 
-    const blob = new Blob([content], {
-      type: "text/plain",
-    });
-
+    const blob = new Blob([content], { type: "text/plain" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
-
     link.href = url;
-    link.download = "cryptotrace-evidence.txt";
+    link.download = `CryptoTrace_Evidence_${searchedWallet.slice(0, 10)}.txt`;
+    document.body.appendChild(link);
     link.click();
-
+    link.remove();
     URL.revokeObjectURL(url);
   }
 
@@ -401,15 +471,28 @@ Potential VASP connection identified with 92% confidence.
                 <button
                   className="primaryButton"
                   onClick={analyzeWallet}
+                  disabled={loading}
                 >
-                  Analyze Wallet
+                  {loading ? "Analyzing..." : "Analyze Wallet"}
                 </button>
 
               </div>
 
-              {searchedWallet && (
+              {analysisError && (
+                <div className="searchedWallet" style={{ color: "#ff6b6b", borderLeft: "3px solid #ff6b6b" }}>
+                  ⚠️ {analysisError}
+                </div>
+              )}
+
+              {searchedWallet && !analysisError && (
                 <div className="searchedWallet">
                   Analyzing: <strong>{searchedWallet}</strong>
+                </div>
+              )}
+
+              {!searchedWallet && !analysisError && (
+                <div className="searchedWallet" style={{ color: "#8b949e" }}>
+                  No investigation conducted yet. Enter a wallet address above and click <strong>Analyze Wallet</strong>.
                 </div>
               )}
 
@@ -422,26 +505,30 @@ Potential VASP connection identified with 92% confidence.
 
               <div className="statCard">
                 <span>TRANSACTIONS</span>
-                <strong>24</strong>
+                <strong>{txList.length}</strong>
                 <small>Detected transactions</small>
               </div>
 
               <div className="statCard">
                 <span>RISK SCORE</span>
-                <strong className="redText">87/100</strong>
-                <small>High probability of fraud</small>
+                <strong className={riskScore === null ? "" : (riskScore >= 75 ? "redText" : "greenText")}>
+                  {riskScore !== null ? `${riskScore}/100` : "--"}
+                </strong>
+                <small>Probability of fraud</small>
               </div>
 
               <div className="statCard">
                 <span>RISK LEVEL</span>
-                <strong className="redText">HIGH</strong>
+                <strong className={riskLevel === "HIGH" ? "redText" : (riskLevel === "LOW" ? "greenText" : "")}>
+                  {riskLevel}
+                </strong>
                 <small>Immediate attention</small>
               </div>
 
               <div className="statCard">
                 <span>VASP MATCH</span>
-                <strong>92%</strong>
-                <small>Attribution confidence</small>
+                <strong>{vaspMatch.confidence}%</strong>
+                <small>{vaspMatch.name}</small>
               </div>
 
             </section>
@@ -471,123 +558,91 @@ Potential VASP connection identified with 92% confidence.
 
               <div className="graphArea">
 
-                {/* CONNECTIONS */}
-
-                <div className="flowLine flow1"></div>
-                <div className="flowLine flow2"></div>
-                <div className="flowLine flow3"></div>
-                <div className="flowLine flow4"></div>
-                <div className="flowLine flow5"></div>
-                <div className="flowLine flow6"></div>
-
-
-                {/* AMOUNTS */}
-
-                <span className="flowAmount a1">
-                  1.42 ETH
-                </span>
-
-                <span className="flowAmount a2">
-                  0.82 ETH
-                </span>
-
-                <span className="flowAmount a3">
-                  1.10 ETH
-                </span>
-
-                <span className="flowAmount a4">
-                  0.76 ETH
-                </span>
-
-                <span className="flowAmount a5">
-                  0.54 ETH
-                </span>
-
-                <span className="flowAmount a6">
-                  1.32 ETH
-                </span>
-
-
-                {/* NODES */}
-
-                {nodes.map((node) => (
-
-                  <button
-                    key={node.id}
-                    className={
-                      selectedNode === node.id
-                        ? "graphNode selected"
-                        : "graphNode"
-                    }
-                    style={{
-                      left: `${node.x}%`,
-                      top: `${node.y}%`,
-                    }}
-                    onClick={() =>
-                      setSelectedNode(node.id)
-                    }
-                  >
-
-                    <strong>
-                      {node.name}
-                    </strong>
-
-                    <span>
-                      {node.type}
-                    </span>
-
-                  </button>
-
-                ))}
-
-
-                {/* NODE DETAILS */}
-
-                {selectedNode && (
-
-                  <div className="nodeDetails">
-
-                    <button
-                      className="closeButton"
-                      onClick={() =>
-                        setSelectedNode(null)
-                      }
-                    >
-                      ×
-                    </button>
-
-                    <small>
-                      SELECTED ENTITY
-                    </small>
-
-                    <h3>
-                      {
-                        nodes.find(
-                          (node) =>
-                            node.id === selectedNode
-                        )?.name
-                      }
-                    </h3>
-
-                    <p>
-                      Entity detected in the
-                      cryptocurrency money-flow path.
-                    </p>
-
-                    <div className="detailRow">
-                      <span>Network</span>
-                      <strong>Ethereum</strong>
-                    </div>
-
-                    <div className="detailRow">
-                      <span>Risk</span>
-                      <strong className="redText">
-                        High
-                      </strong>
-                    </div>
-
+                {nodeList.length === 0 ? (
+                  <div style={{ display: "flex", height: "100%", alignItems: "center", justifyContent: "center", color: "#8b949e" }}>
+                    {riskLevel === "ANALYZING" ? "Analyzing blockchain network flow..." : "No investigation graph loaded. Enter a wallet address above and click 'Analyze Wallet'."}
                   </div>
+                ) : (
+                  <>
+                    {/* CONNECTIONS */}
+                    <div className="flowLine flow1"></div>
+                    <div className="flowLine flow2"></div>
+                    <div className="flowLine flow3"></div>
+                    <div className="flowLine flow4"></div>
+                    <div className="flowLine flow5"></div>
+                    <div className="flowLine flow6"></div>
 
+                    {/* NODES */}
+                    {nodeList.map((node) => (
+                      <button
+                        key={node.id}
+                        className={
+                          selectedNode === node.id
+                            ? "graphNode selected"
+                            : "graphNode"
+                        }
+                        style={{
+                          left: `${node.x}%`,
+                          top: `${node.y}%`,
+                        }}
+                        onClick={() =>
+                          setSelectedNode(node.id)
+                        }
+                      >
+                        <strong>
+                          {node.name}
+                        </strong>
+
+                        <span>
+                          {node.type}
+                        </span>
+                      </button>
+                    ))}
+
+                    {/* NODE DETAILS */}
+                    {selectedNode && (
+                      <div className="nodeDetails">
+                        <button
+                          className="closeButton"
+                          onClick={() =>
+                            setSelectedNode(null)
+                          }
+                        >
+                          ×
+                        </button>
+
+                        <small>
+                          SELECTED ENTITY
+                        </small>
+
+                        <h3>
+                          {
+                            nodeList.find(
+                              (node) =>
+                                node.id === selectedNode
+                            )?.name || selectedNode
+                          }
+                        </h3>
+
+                        <p>
+                          Entity detected in the
+                          cryptocurrency money-flow path.
+                        </p>
+
+                        <div className="detailRow">
+                          <span>Network</span>
+                          <strong>Ethereum</strong>
+                        </div>
+
+                        <div className="detailRow">
+                          <span>Type</span>
+                          <strong className="redText">
+                            {nodeList.find((n) => n.id === selectedNode)?.type || "PEER"}
+                          </strong>
+                        </div>
+                      </div>
+                    )}
+                  </>
                 )}
 
               </div>
@@ -610,25 +665,24 @@ Potential VASP connection identified with 92% confidence.
                   </div>
                 </div>
 
-                <div className="indicator">
-                  <span>Rapid fund movement</span>
-                  <strong>HIGH</strong>
-                </div>
-
-                <div className="indicator">
-                  <span>Multiple intermediary wallets</span>
-                  <strong>HIGH</strong>
-                </div>
-
-                <div className="indicator">
-                  <span>Fund consolidation</span>
-                  <strong>HIGH</strong>
-                </div>
-
-                <div className="indicator">
-                  <span>Exchange interaction</span>
-                  <strong>MEDIUM</strong>
-                </div>
+                {riskLevel === "NOT ANALYZED" ? (
+                  <div className="indicator">
+                    <span style={{ color: "#8b949e" }}>No wallet investigation conducted yet.</span>
+                    <strong style={{ color: "#8b949e" }}>IDLE</strong>
+                  </div>
+                ) : reasons && reasons.length > 0 ? (
+                  reasons.map((reason, idx) => (
+                    <div key={idx} className="indicator">
+                      <span>{reason}</span>
+                      <strong className="redText">DETECTED</strong>
+                    </div>
+                  ))
+                ) : (
+                  <div className="indicator">
+                    <span>No suspicious signals detected</span>
+                    <strong className="greenText">CLEAN</strong>
+                  </div>
+                )}
 
               </section>
 
@@ -652,10 +706,9 @@ Potential VASP connection identified with 92% confidence.
 
                   <div>
                     <span>IDENTIFIED VASP</span>
-                    <h3>Potential Exchange</h3>
+                    <h3>{vaspMatch.name}</h3>
                     <p>
-                      Destination wallet matches known
-                      exchange behaviour.
+                      Destination wallet attribution result.
                     </p>
                   </div>
 
@@ -665,13 +718,13 @@ Potential VASP connection identified with 92% confidence.
 
                   <div>
                     <span>ATTRIBUTION CONFIDENCE</span>
-                    <strong>92%</strong>
+                    <strong>{vaspMatch.confidence}%</strong>
                   </div>
 
                   <div className="progress">
                     <div
                       className="progressFill"
-                      style={{ width: "92%" }}
+                      style={{ width: `${vaspMatch.confidence}%` }}
                     ></div>
                   </div>
 
@@ -711,7 +764,7 @@ Potential VASP connection identified with 92% confidence.
                       Initial wallet entered for investigation.
                     </p>
 
-                    <small>10:42 AM</small>
+                    <small>Recent</small>
                   </div>
                 </div>
 
@@ -727,7 +780,7 @@ Potential VASP connection identified with 92% confidence.
                       Funds moved through intermediary wallets.
                     </p>
 
-                    <small>10:38 AM</small>
+                    <small>Recent</small>
                   </div>
                 </div>
 
@@ -743,7 +796,7 @@ Potential VASP connection identified with 92% confidence.
                       Multiple transaction paths converged.
                     </p>
 
-                    <small>10:25 AM</small>
+                    <small>Recent</small>
                   </div>
                 </div>
 
@@ -757,10 +810,10 @@ Potential VASP connection identified with 92% confidence.
 
                     <p>
                       Destination address matched exchange
-                      behaviour with 92% confidence.
+                      behaviour pattern.
                     </p>
 
-                    <small>10:11 AM</small>
+                    <small>Recent</small>
                   </div>
                 </div>
 
@@ -798,161 +851,144 @@ Potential VASP connection identified with 92% confidence.
                       setFilter(e.target.value)}
                   >
                     <option value="All">All</option>
-  <option value="Suspicious">Suspicious</option>
-  <option value="Normal">Normal</option>
-</select>
+                    <option value="Suspicious">Suspicious</option>
+                    <option value="Normal">Normal</option>
+                  </select>
 
-</div>
+                </div>
 
-</div>
+              </div>
 
-<div className="tableWrapper">
+              <div className="tableWrapper">
 
-  <table>
+                <table>
 
-    <thead>
-      <tr>
-        <th>TRANSACTION</th>
-        <th>FROM</th>
-        <th>TO</th>
-        <th>AMOUNT</th>
-        <th>TIME</th>
-        <th>STATUS</th>
-      </tr>
-    </thead>
+                  <thead>
+                    <tr>
+                      <th>TRANSACTION</th>
+                      <th>FROM</th>
+                      <th>TO</th>
+                      <th>AMOUNT</th>
+                      <th>TIME</th>
+                      <th>STATUS</th>
+                    </tr>
+                  </thead>
 
-    <tbody>
+                  <tbody>
 
-      {filteredTransactions.map((tx) => (
-        <tr key={tx.hash}>
+                    {filteredTransactions.length > 0 ? (
+                      filteredTransactions.map((tx) => (
+                        <tr key={tx.hash}>
+                          <td className="hash">{tx.hash}</td>
+                          <td>{tx.from}</td>
+                          <td>{tx.to}</td>
+                          <td>{tx.amount}</td>
+                          <td>{tx.time}</td>
+                          <td>
+                            <span className={tx.status === "Suspicious" ? "status suspicious" : "status normal"}>
+                              {tx.status}
+                            </span>
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan="6" style={{ textAlign: "center", padding: "20px", color: "#8b949e" }}>
+                          {searchedWallet ? "No transactions found for this wallet." : "No investigation conducted yet. Enter a wallet above to fetch transactions."}
+                        </td>
+                      </tr>
+                    )}
 
-          <td className="hash">
-            {tx.hash}
-          </td>
+                  </tbody>
 
-          <td>
-            {tx.from}
-          </td>
+                </table>
 
-          <td>
-            {tx.to}
-          </td>
+              </div>
 
-          <td>
-            {tx.amount}
-          </td>
-
-          <td>
-            {tx.time}
-          </td>
-
-          <td>
-
-            <span
-              className={
-                tx.status === "Suspicious"
-                  ? "status suspicious"
-                  : "status normal"
-              }
-            >
-              {tx.status}
-            </span>
-
-          </td>
-
-        </tr>
-      ))}
-
-    </tbody>
-
-  </table>
-
-</div>
-
-</section>
+            </section>
 
 
-{/* INVESTIGATION SUMMARY */}
+            {/* INVESTIGATION SUMMARY */}
 
-<section className="panel">
+            <section className="panel">
 
-  <div className="panelHeader">
+              <div className="panelHeader">
 
-    <div>
-      <h2>Investigation Summary</h2>
+                <div>
+                  <h2>Investigation Summary</h2>
 
-      <p>
-        Automated analysis conclusion
-      </p>
-    </div>
+                  <p>
+                    Automated analysis conclusion
+                  </p>
+                </div>
 
-  </div>
-
-
-  <div className="summaryBox">
-
-    <div className="summaryScore">
-
-      <strong>87</strong>
-
-      <span>
-        RISK SCORE
-      </span>
-
-    </div>
+              </div>
 
 
-    <div className="summaryText">
+              <div className="summaryBox">
 
-      <h3>
-        High-risk cryptocurrency flow detected
-      </h3>
+                <div className="summaryScore">
 
-      <p>
-        The investigated wallet demonstrates multiple
-        suspicious transaction patterns, including rapid
-        fund movement, intermediary wallet usage and fund
-        consolidation. The traced flow reaches a potential
-        VASP with an estimated attribution confidence of 92%.
-      </p>
+                  <strong>{riskScore !== null ? riskScore : "--"}</strong>
 
-    </div>
+                  <span>
+                    RISK SCORE
+                  </span>
 
-  </div>
+                </div>
 
 
-  <div className="actionButtons">
+                <div className="summaryText">
 
-    <button
-      className="primaryButton"
-      onClick={generateReport}
-    >
-      Generate Investigation Report
-    </button>
+                  <h3>
+                    {riskLevel === "NOT ANALYZED" ? "No Investigation Conducted Yet" : `${riskLevel} Risk Flow Detected (${riskScore}/100)`}
+                  </h3>
 
-    <button
-      className="secondaryButton"
-      onClick={exportEvidence}
-    >
-      Export Evidence
-    </button>
+                  <p>
+                    {riskLevel === "NOT ANALYZED"
+                      ? "Enter a suspect wallet address above to trace transaction flows, compute risk score, and identify VASP attribution."
+                      : `The investigated wallet demonstrates an overall risk level of ${riskLevel} with a calculated score of ${riskScore}/100. Attribution matching identified VASP target "${vaspMatch.name}" with ${vaspMatch.confidence}% confidence.`}
+                  </p>
 
-  </div>
+                </div>
+
+              </div>
 
 
-  {reportGenerated && (
+              <div className="actionButtons">
 
-    <div className="successMessage">
-      ✓ Investigation report generated successfully.
-    </div>
+                <button
+                  className="primaryButton"
+                  onClick={generateReport}
+                  disabled={!searchedWallet || loading}
+                >
+                  Generate Investigation Report
+                </button>
 
-  )}
+                <button
+                  className="secondaryButton"
+                  onClick={exportEvidence}
+                  disabled={!searchedWallet || loading}
+                >
+                  Export Evidence
+                </button>
 
-</section>
+              </div>
 
-</div>
 
-)}
+              {reportGenerated && (
+
+                <div className="successMessage">
+                  ✓ Investigation report generated successfully.
+                </div>
+
+              )}
+
+            </section>
+
+          </div>
+
+        )}
 
 
 {/* CASES */}

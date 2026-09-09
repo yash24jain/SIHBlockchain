@@ -250,6 +250,10 @@ def calculate_risk(
     if behavioral_baseline is None:
 
         baseline_path = Path("data/behavioral_baseline.json")
+        if not baseline_path.exists():
+            alt_path = Path(__file__).parent.parent / "data" / "behavioral_baseline.json"
+            if alt_path.exists():
+                baseline_path = alt_path
 
         if baseline_path.exists():
 
