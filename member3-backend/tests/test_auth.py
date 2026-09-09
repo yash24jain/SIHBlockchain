@@ -20,7 +20,7 @@ def test_register_and_login():
 
     login = client.post(
         "/auth/login",
-        json={"username": payload["username"], "password": payload["password"]},
+        data={"username": payload["username"], "password": payload["password"]},
     )
     assert login.status_code == 200
     assert "access_token" in login.json()

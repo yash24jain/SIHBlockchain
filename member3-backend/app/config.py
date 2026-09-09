@@ -31,7 +31,7 @@ class Settings(BaseSettings):
     BLOCKCHAIN_SERVICE_URL: str = "http://localhost:8002"
     RISK_SERVICE_URL: str = "http://localhost:8003"
     VASP_SERVICE_URL: str = "http://localhost:8004"
-    USE_MOCK_SERVICES: bool = True
+    USE_MOCK_SERVICES: bool = False
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

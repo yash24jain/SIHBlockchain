@@ -33,6 +33,42 @@ def compute_risk(
         db.commit()
         db.refresh(wallet)
 
+    # 1. Fetch & persist transactions into PostgreSQL for this wallet
+    from app.models.transaction import Transaction
+    from app.services.blockchain_client import fetch_wallet_transactions
+
+    raw_txs = fetch_wallet_transactions(payload.wallet_address, limit=100)
+    for tx_item in raw_txs:
+        t_hash = tx_item.get("tx_hash")
+        if not t_hash:
+            continue
+        existing_tx = db.query(Transaction).filter(Transaction.tx_hash == t_hash).first()
+        if not existing_tx:
+            ts_val = tx_item.get("timestamp")
+            if isinstance(ts_val, (int, float)):
+                ts_dt = datetime.utcfromtimestamp(ts_val)
+            elif isinstance(ts_val, str):
+                try:
+                    ts_dt = datetime.fromisoformat(ts_val.replace("Z", "+00:00"))
+                except Exception:
+                    ts_dt = datetime.utcnow()
+            else:
+                ts_dt = datetime.utcnow()
+
+            db.add(
+                Transaction(
+                    tx_hash=t_hash,
+                    from_address=str(tx_item.get("from_address") or tx_item.get("from") or payload.wallet_address).lower().strip(),
+                    to_address=str(tx_item.get("to_address") or tx_item.get("to") or "").lower().strip(),
+                    amount=float(tx_item.get("amount", 0.0) or 0.0),
+                    token_symbol=str(tx_item.get("token_symbol") or tx_item.get("token") or "ETH"),
+                    chain=str(tx_item.get("chain") or "ethereum"),
+                    block_number=tx_item.get("block_number"),
+                    timestamp=ts_dt,
+                )
+            )
+    db.commit()
+
     graph_data = get_wallet_graph(payload.wallet_address)
     result = calculate_risk(payload.wallet_address, graph_data)
 
